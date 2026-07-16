@@ -62,7 +62,8 @@ export const Login: React.FC = () => {
           <img
             src={isDark ? logoMonoLight : logoColor}
             alt="CQUT-Auth Logo"
-            style={{ height: isMobile ? 48 : 56, width: "auto" }}
+            width={isMobile ? 192 : 224}
+            height={isMobile ? 48 : 56}
           />
           <div style={{ textAlign: "center" }}>
             <Title
@@ -101,14 +102,23 @@ export const Login: React.FC = () => {
             name="account"
             rules={[{ required: true, message: "请输入账号" }]}
           >
-            <Input size="large" placeholder="学号/工号" />
+            <Input
+              size="large"
+              placeholder="学号/工号"
+              autoComplete="username"
+              spellCheck={false}
+            />
           </Form.Item>
           <Form.Item
             label="密码"
             name="password"
             rules={[{ required: true, message: "请输入密码" }]}
           >
-            <Input.Password size="large" placeholder="密码" />
+            <Input.Password
+              size="large"
+              placeholder="密码"
+              autoComplete="current-password"
+            />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
             <Button

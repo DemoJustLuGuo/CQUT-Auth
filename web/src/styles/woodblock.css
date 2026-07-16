@@ -18,8 +18,9 @@
   --wb-grain-ring: rgba(5, 80, 136, 0.035);
   --wb-grain-glow: rgba(5, 80, 136, 0.06);
   --wb-card-shadow: rgba(11, 31, 51, 0.35);
-  --wb-serif: "Source Han Serif SC", "Noto Serif SC", "Songti SC", STSong,
-    Georgia, "Times New Roman", serif;
+  --wb-serif:
+    "Source Han Serif SC", "Noto Serif SC", "Songti SC", STSong, Georgia,
+    "Times New Roman", serif;
 }
 
 [data-theme="dark"] {
@@ -37,6 +38,10 @@
   --wb-grain-ring: rgba(232, 227, 213, 0.03);
   --wb-grain-glow: rgba(63, 143, 196, 0.05);
   --wb-card-shadow: rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 /* 纸感底纹背景(细环纹 + 交叉斜纹 + 顶部微光) */
@@ -82,6 +87,7 @@
 
 /* 雕版卡片:小圆角 + 双描边 + 顶部织纹条 */
 .wb-card {
+  box-sizing: border-box;
   background: var(--wb-card);
   border: 1px solid var(--wb-line-strong);
   border-radius: 3px;
@@ -186,6 +192,14 @@
 /* AntD 全局微调:按钮字距贴近雕版风 */
 .ant-btn {
   letter-spacing: 0.04em;
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-card-in,
+  .wb-rise-in {
+    animation: none;
+  }
 }
 
 /* ============================================

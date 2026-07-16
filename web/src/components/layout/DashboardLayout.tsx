@@ -45,7 +45,8 @@ export const DashboardLayout: React.FC = () => {
   const { mutate: logout } = useLogout();
   const { themeMode, toggleTheme } = useThemeMode();
   const { token } = theme.useToken();
-  const { isMobile } = useBreakpoint();
+  const { isMobile, isDesktop } = useBreakpoint();
+  const usesDrawerNavigation = !isDesktop;
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerVisible, setMobileDrawerVisible] = useState(false);
@@ -56,6 +57,7 @@ export const DashboardLayout: React.FC = () => {
   const handleProjectSelect = (value: string) => {
     selectProject(value);
     navigate(`/projects/${encodeURIComponent(value)}/overview`);
+    setMobileDrawerVisible(false);
   };
 
   const getBreadcrumbs = () => {
@@ -209,6 +211,7 @@ export const DashboardLayout: React.FC = () => {
       selectedKeys={[location.pathname]}
       items={getMenuItems()}
       style={{ borderRight: 0 }}
+      onClick={() => setMobileDrawerVisible(false)}
     />
   );
 
@@ -230,7 +233,7 @@ export const DashboardLayout: React.FC = () => {
           position: "sticky",
           top: 0,
           left: 0,
-          display: isMobile ? "none" : "block",
+          display: usesDrawerNavigation ? "none" : "block",
         }}
       >
         <div
@@ -239,10 +242,15 @@ export const DashboardLayout: React.FC = () => {
           <img
             src={logoMonoLight}
             alt="CQUT-Auth"
-            style={{ height: "40px", maxWidth: "100%" }}
+            width={160}
+            height={40}
+            style={{ maxWidth: "100%" }}
           />
         </div>
-        <hr className="wb-rule wb-rule-on-dark" style={{ margin: "0 16px 8px" }} />
+        <hr
+          className="wb-rule wb-rule-on-dark"
+          style={{ margin: "0 16px 8px" }}
+        />
         {menuElement}
       </Sider>
 
@@ -262,7 +270,7 @@ export const DashboardLayout: React.FC = () => {
             <Button
               type="text"
               icon={
-                isMobile ? (
+                usesDrawerNavigation ? (
                   <MenuUnfoldOutlined />
                 ) : collapsed ? (
                   <MenuUnfoldOutlined />
@@ -271,12 +279,19 @@ export const DashboardLayout: React.FC = () => {
                 )
               }
               onClick={() => {
-                if (isMobile) {
+                if (usesDrawerNavigation) {
                   setMobileDrawerVisible(true);
                 } else {
                   setCollapsed(!collapsed);
                 }
               }}
+              aria-label={
+                usesDrawerNavigation
+                  ? "打开导航菜单"
+                  : collapsed
+                    ? "展开侧边栏"
+                    : "收起侧边栏"
+              }
             />
             {!isMobile && visibleProjects.length > 0 && (
               <Select
@@ -328,6 +343,9 @@ export const DashboardLayout: React.FC = () => {
               type="text"
               icon={themeMode === "dark" ? <SunOutlined /> : <MoonOutlined />}
               onClick={toggleTheme}
+              aria-label={
+                themeMode === "dark" ? "切换到浅色模式" : "切换到深色模式"
+              }
               style={{
                 fontSize: isMobile ? "14px" : "16px",
                 display: "flex",
@@ -340,6 +358,7 @@ export const DashboardLayout: React.FC = () => {
               danger
               icon={<LogoutOutlined />}
               onClick={() => logout()}
+              aria-label="退出登录"
             >
               {!isMobile && "退出"}
             </Button>
@@ -349,11 +368,11 @@ export const DashboardLayout: React.FC = () => {
         {/* Mobile Drawer */}
         <Drawer
           title={
-            <img src={logoColor} alt="CQUT-Auth" style={{ height: "32px" }} />
+            <img src={logoColor} alt="CQUT-Auth" width={128} height={32} />
           }
           placement="left"
           onClose={() => setMobileDrawerVisible(false)}
-          open={mobileDrawerVisible}
+          open={usesDrawerNavigation && mobileDrawerVisible}
           bodyStyle={{ padding: 0, background: "#0b1f33" }}
           width={280}
         >

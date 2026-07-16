@@ -442,6 +442,7 @@ export const ClientDetail: React.FC = () => {
                 navigate(`/projects/${encodeURIComponent(projectId!)}/clients`)
               }
               size="small"
+              aria-label="返回客户端列表"
             />
             <Title level={5} style={{ margin: 0 }}>
               {client.displayName}
@@ -457,6 +458,7 @@ export const ClientDetail: React.FC = () => {
               onClick={() =>
                 navigate(`/projects/${encodeURIComponent(projectId!)}/clients`)
               }
+              aria-label="返回客户端列表"
             />
             <Space direction="vertical" size={0}>
               <Title level={4} style={{ margin: 0 }}>
@@ -645,7 +647,9 @@ export const ClientDetail: React.FC = () => {
                                       >
                                         <Input
                                           placeholder="https://example.com/callback"
-                                          style={{ width: isMobile ? "100%" : 400 }}
+                                          style={{
+                                            width: isMobile ? "100%" : 400,
+                                          }}
                                         />
                                       </Form.Item>
                                       {fields.length > 1 && (
@@ -703,7 +707,9 @@ export const ClientDetail: React.FC = () => {
                                       >
                                         <Input
                                           placeholder="https://example.com/logged-out"
-                                          style={{ width: isMobile ? "100%" : 400 }}
+                                          style={{
+                                            width: isMobile ? "100%" : 400,
+                                          }}
                                         />
                                       </Form.Item>
                                       <Button

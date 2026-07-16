@@ -1,5 +1,4 @@
-import { useMediaQuery } from './useMediaQuery';
-import { MEDIA_QUERIES } from '../utils/breakpoints';
+import { Grid } from "antd";
 
 /**
  * Breakpoint state interface
@@ -26,7 +25,7 @@ export interface BreakpointState {
   xxl: boolean;
 
   /** Current active breakpoint */
-  current: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
+  current: "xs" | "sm" | "md" | "lg" | "xl" | "xxl";
 }
 
 /**
@@ -54,31 +53,29 @@ export interface BreakpointState {
  *   default: return <NormalView />;
  * }
  *
- * @performance
- * Call this hook once at the component root and pass values as props to children.
- * Avoid calling it in multiple child components (creates multiple media query listeners).
+ * Uses Ant Design's shared responsive observer, so component instances reuse
+ * the same breakpoint subscriptions.
  */
 export function useBreakpoint(): BreakpointState {
-  // Semantic queries (most commonly used)
-  const isMobile = useMediaQuery(MEDIA_QUERIES.mobile);
-  const isTablet = useMediaQuery(MEDIA_QUERIES.tablet);
-  const isDesktop = useMediaQuery(MEDIA_QUERIES.desktop);
+  const screens = Grid.useBreakpoint();
+  const hasActiveBreakpoint = Object.values(screens).some(Boolean);
+  const xxl = Boolean(screens.xxl);
+  const xl = Boolean(screens.xl) && !xxl;
+  const lg = hasActiveBreakpoint ? Boolean(screens.lg) && !screens.xl : true;
+  const md = Boolean(screens.md) && !screens.lg;
+  const sm = Boolean(screens.sm) && !screens.md;
+  const xs = Boolean(screens.xs);
 
-  // Specific breakpoint queries
-  const xs = useMediaQuery(MEDIA_QUERIES.xs);
-  const sm = useMediaQuery(MEDIA_QUERIES.sm);
-  const md = useMediaQuery(MEDIA_QUERIES.md);
-  const lg = useMediaQuery(MEDIA_QUERIES.lg);
-  const xl = useMediaQuery(MEDIA_QUERIES.xl);
-  const xxl = useMediaQuery(MEDIA_QUERIES.xxl);
+  let current: BreakpointState["current"] = "lg";
+  if (xs) current = "xs";
+  else if (sm) current = "sm";
+  else if (md) current = "md";
+  else if (xl) current = "xl";
+  else if (xxl) current = "xxl";
 
-  // Determine current breakpoint (priority order: xs > sm > md > lg > xl > xxl)
-  let current: BreakpointState['current'] = 'lg';
-  if (xs) current = 'xs';
-  else if (sm) current = 'sm';
-  else if (md) current = 'md';
-  else if (xl) current = 'xl';
-  else if (xxl) current = 'xxl';
+  const isMobile = xs || sm;
+  const isTablet = md;
+  const isDesktop = lg || xl || xxl;
 
   return {
     isMobile,

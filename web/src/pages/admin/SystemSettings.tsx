@@ -21,7 +21,6 @@ import {
   SettingOutlined,
 } from "@ant-design/icons";
 import { request } from "../../api/client";
-import { useBreakpoint } from "../../hooks/useBreakpoint";
 import type { EmailProviderKind, RuntimePolicyView } from "../../api/types";
 
 const { Text } = Typography;
@@ -91,7 +90,6 @@ const groups = [
 
 export const SystemSettings: React.FC = () => {
   const [form] = Form.useForm();
-  const { isMobile } = useBreakpoint();
   const [view, setView] = useState<RuntimePolicyView>();
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
