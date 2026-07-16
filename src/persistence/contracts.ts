@@ -219,6 +219,21 @@ export type PendingInteractionLogin = {
   };
 };
 
+export type InteractionEmailVerificationResult =
+  | { status: "missing" | "stale" }
+  | { status: "expired" | "locked"; email: string }
+  | {
+      status: "incorrect";
+      email: string;
+      nextResendAt: number;
+      attemptsRemaining: number;
+    }
+  | {
+      status: "verified";
+      email: string;
+      pending: PendingInteractionLogin;
+    };
+
 export type OidcSigningKeyRecord = {
   kid: string;
   alg: string;
@@ -447,6 +462,13 @@ export interface OidcArtifactRepository {
   getInteractionLogin(
     uid: string,
   ): Promise<PendingInteractionLogin | undefined>;
+  verifyInteractionEmailCode(
+    uid: string,
+    expectedCodeHash: string,
+    inputCodeHash: string,
+    now: number,
+    maxAttempts: number,
+  ): Promise<InteractionEmailVerificationResult>;
   deleteInteractionLogin(uid: string): Promise<void>;
 }
 
@@ -473,11 +495,8 @@ export interface AppSettingRecord {
 }
 
 export type AppSettingAuditAction =
-  | "email_settings.updated"
-  | "email_settings.verified"
   | "runtime_policy.updated"
-  | "runtime_policy.verified"
-  | "runtime_policy.migrated";
+  | "runtime_policy.verified";
 
 export interface AppSettingAuditRecord {
   id: number;
@@ -522,18 +541,6 @@ export interface PersistenceRuntime {
   hasDatabase(): boolean;
   checkReadiness(): Promise<boolean>;
 }
-
-export interface OidcPersistence
-  extends
-    PersistenceRuntime,
-    IdentityRepository,
-    ProjectRepository,
-    OidcClientRepository,
-    ManagementSessionRepository,
-    OidcArtifactRepository,
-    SigningKeyRepository,
-    AppSettingsRepository,
-    JwkCipherService {}
 
 export function buildArtifactCleanupSql(limit: string | number): string {
   return `

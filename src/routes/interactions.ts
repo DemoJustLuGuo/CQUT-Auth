@@ -3,19 +3,20 @@ import {
   IdentityCoreError,
   RetryableProviderError,
 } from "../identity/errors.js";
+import { hasSafeCredentialLengths } from "../identity/types.js";
 import express, { type Request, type Response } from "express";
-import type { OidcOpConfig } from "../config.js";
+import type { StaticConfig } from "../config.js";
 import {
   RateLimitUnavailableError,
   type RateLimitDecision,
   type RateLimitService,
 } from "../persistence/rate-limit.service.js";
-import type {
-  OidcPersistence,
-  PendingInteractionLogin,
-} from "../persistence/contracts.js";
-import type { OidcServices } from "../oidc/provider.js";
+import type { PendingInteractionLogin } from "../persistence/contracts.js";
+import type { PersistenceModules } from "../persistence/persistence.js";
+import type { OidcInteractionPort, OidcRuntime } from "../oidc/provider.js";
 import { resolveTrustedExpressRequestIp } from "../request-ip.js";
+import { renderBrandedPage } from "../pages/branded-page.js";
+import { InteractionJourney } from "../identity/interaction-journey.js";
 import {
   base64Url,
   escapeHtml,
@@ -43,7 +44,7 @@ type CsrfTokenPayload = {
 
 function setCsrfNonceCookie(
   response: Response,
-  config: OidcOpConfig,
+  config: StaticConfig,
   nonce: string,
 ) {
   response.cookie(CSRF_NONCE_COOKIE_NAME, nonce, {
@@ -77,7 +78,7 @@ function signCsrfPayload(payloadBase64Url: string, secret: string): string {
 
 function issueCsrfToken(
   response: Response,
-  config: OidcOpConfig,
+  config: StaticConfig,
   uid: string,
   flow: CsrfFlow,
 ): string {
@@ -137,7 +138,7 @@ function parseAndValidateCsrfPayload(
 
 function validateCsrf(
   request: Request,
-  config: OidcOpConfig,
+  config: StaticConfig,
   expected: { uid: string; flow: CsrfFlow; token: string | undefined },
 ): boolean {
   if (!expected.token) {
@@ -724,32 +725,7 @@ function renderInteractionPageStyles(): string {
 }
 
 function renderPage(title: string, body: string) {
-  return renderBrandedPage(title, body);
-}
-
-export function renderBrandedPage(title: string, body: string) {
-  return `<!DOCTYPE html>
-  <html lang="zh-CN">
-    <head>
-      <meta charset="utf-8">
-      <title>${escapeHtml(title)}</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-      <style>${renderInteractionPageStyles()}
-      </style>
-    </head>
-    <body>
-      <header class="page-header">
-        <img class="brand-logo brand-logo-light" src="/logo-auth-color.svg" alt="CQUT Auth 统一身份认证服务">
-        <img class="brand-logo brand-logo-dark" src="/logo-auth-mono-light.svg" alt="CQUT Auth 统一身份认证服务">
-      </header>
-      <div class="page-shell">
-        <main class="container">
-          ${body}
-        </main>
-      </div>
-    </body>
-  </html>`;
+  return renderBrandedPage(title, body, renderInteractionPageStyles());
 }
 
 function loginView(
@@ -923,7 +899,7 @@ function generateVerificationCode() {
 }
 
 function hashEmailVerificationCode(
-  config: OidcOpConfig,
+  config: StaticConfig,
   uid: string,
   email: string,
   code: string,
@@ -941,25 +917,15 @@ function getResendCooldownSeconds(
 }
 
 async function finishInteractionLogin(
-  provider: any,
+  interactions: OidcInteractionPort,
   request: Request,
   response: Response,
   pending: PendingInteractionLogin,
 ) {
-  await provider.interactionFinished(
-    request,
-    response,
-    {
-      login: {
-        accountId: pending.principal.subjectId,
-        acr: "urn:cqut:loa:1",
-        amr: ["pwd"],
-        remember: false,
-        ts: pending.authTime,
-      },
-    },
-    { mergeWithLastSubmission: false },
-  );
+  await interactions.finishLogin(request, response, {
+    accountId: pending.principal.subjectId,
+    authTime: pending.authTime,
+  });
 }
 
 function asStringArray(value: unknown): string[] {
@@ -1116,80 +1082,6 @@ function handleInteractionRouteError(
   next(error);
 }
 
-async function isAutoConsentClient(
-  store: OidcPersistence,
-  details: any,
-): Promise<boolean> {
-  const clientId =
-    typeof details?.params?.client_id === "string"
-      ? details.params.client_id
-      : "";
-  if (!clientId) {
-    return false;
-  }
-  const client = await store.findOidcClient(clientId);
-  return Boolean(client?.autoConsent);
-}
-
-async function finishConsent(
-  provider: any,
-  request: Request,
-  response: Response,
-  details?: any,
-) {
-  const interactionDetails =
-    details ?? (await provider.interactionDetails(request, response));
-  const { prompt, params, session, grantId } = interactionDetails;
-  if (prompt.name !== "consent") {
-    return false;
-  }
-  let grant;
-  if (grantId) {
-    grant = await provider.Grant.find(grantId);
-  } else {
-    grant = new provider.Grant({
-      accountId: session.accountId,
-      clientId: String(params.client_id),
-    });
-  }
-  if (prompt.details.missingOIDCScope) {
-    grant.addOIDCScope(prompt.details.missingOIDCScope.join(" "));
-  }
-  if (prompt.details.missingOIDCClaims) {
-    grant.addOIDCClaims(prompt.details.missingOIDCClaims);
-  }
-  if (prompt.details.missingResourceScopes) {
-    for (const [indicator, scope] of Object.entries(
-      prompt.details.missingResourceScopes,
-    )) {
-      grant.addResourceScope(indicator, (scope as string[]).join(" "));
-    }
-  }
-  await provider.interactionFinished(
-    request,
-    response,
-    { consent: { grantId: await grant.save() } },
-    { mergeWithLastSubmission: true },
-  );
-  return true;
-}
-
-async function denyConsent(
-  provider: any,
-  request: Request,
-  response: Response,
-) {
-  await provider.interactionFinished(
-    request,
-    response,
-    {
-      error: "access_denied",
-      error_description: "resource owner denied consent",
-    },
-    { mergeWithLastSubmission: false },
-  );
-}
-
 function loginAttemptKey(ip: string, account: string) {
   return `oidc:login:attempt:account-ip:${sha256(account)}:${ip}`;
 }
@@ -1232,7 +1124,7 @@ async function consumeRateLimitChecks(
 }
 
 async function consumeLoginRateLimit(
-  config: OidcOpConfig,
+  config: StaticConfig,
   rateLimitService: RateLimitService,
   identity: {
     ip: string;
@@ -1314,7 +1206,7 @@ function getEmailDomain(email: string) {
 }
 
 async function consumeEmailVerifyRateLimit(
-  config: OidcOpConfig,
+  config: StaticConfig,
   rateLimitService: RateLimitService,
   identity: {
     subjectId: string;
@@ -1355,13 +1247,17 @@ function serviceUnavailableView() {
 }
 
 export function createInteractionRouter(
-  config: OidcOpConfig,
-  provider: any,
-  services: OidcServices,
-  store: OidcPersistence,
+  config: StaticConfig,
+  interactions: OidcInteractionPort,
+  services: OidcRuntime,
+  persistence: Pick<PersistenceModules, "clients" | "artifacts">,
   rateLimitService: RateLimitService,
 ): express.Router {
   const router = express.Router();
+  const journey = new InteractionJourney(
+    persistence.artifacts,
+    persistence.clients,
+  );
   const formParser = express.urlencoded({
     extended: false,
     limit: "16kb",
@@ -1371,13 +1267,14 @@ export function createInteractionRouter(
   router.get("/:uid", async (request, response, next) => {
     try {
       setNoStore(response);
-      const details = await provider.interactionDetails(request, response);
+      const uid = request.params["uid"] ?? "";
+      const details = await interactions.details(request, response);
+      const { pending, autoConsent } = await journey.open(uid, details);
       if (details.prompt.name === "consent") {
-        if (await isAutoConsentClient(store, details)) {
-          await finishConsent(provider, request, response, details);
+        if (autoConsent) {
+          await interactions.finishConsent(request, response, details);
           return;
         }
-        const uid = request.params["uid"] ?? "";
         const csrf = issueCsrfToken(response, config, uid, "consent");
         response.status(200).send(consentView(response, uid, csrf, details));
         return;
@@ -1390,9 +1287,6 @@ export function createInteractionRouter(
           );
         return;
       }
-      const pending = await store.getInteractionLogin(
-        request.params["uid"] ?? "",
-      );
       if (pending) {
         response.redirect(
           302,
@@ -1400,7 +1294,6 @@ export function createInteractionRouter(
         );
         return;
       }
-      const uid = request.params["uid"] ?? "";
       const csrf = issueCsrfToken(response, config, uid, "login");
       response.status(200).send(loginView(response, uid, csrf));
     } catch (error) {
@@ -1432,7 +1325,9 @@ export function createInteractionRouter(
           );
         return;
       }
-      const details = await provider.interactionDetails(request, response);
+      const details = journey.submitLogin(
+        await interactions.details(request, response),
+      );
       if (details.prompt.name !== "consent") {
         response
           .status(400)
@@ -1443,12 +1338,13 @@ export function createInteractionRouter(
       }
       const action =
         typeof request.body?.action === "string" ? request.body.action : "";
-      if (action === "approve") {
-        await finishConsent(provider, request, response, details);
+      const outcome = journey.submitConsent(action);
+      if (outcome?.kind === "finishConsent") {
+        await interactions.finishConsent(request, response, details);
         return;
       }
-      if (action === "deny") {
-        await denyConsent(provider, request, response);
+      if (outcome?.kind === "denyConsent") {
+        await interactions.denyConsent(request, response);
         return;
       }
       const csrf = issueCsrfToken(response, config, uid, "consent");
@@ -1484,7 +1380,9 @@ export function createInteractionRouter(
           );
         return;
       }
-      const loginDetails = await provider.interactionDetails(request, response);
+      const loginDetails = journey.submitLogin(
+        await interactions.details(request, response),
+      );
       if (loginDetails.prompt.name !== "login" || loginDetails.uid !== uid) {
         response
           .status(400)
@@ -1495,10 +1393,17 @@ export function createInteractionRouter(
       }
       const account =
         typeof request.body?.account === "string"
-          ? request.body.account.trim()
+          ? request.body.account.trim().toLowerCase()
           : "";
       const password =
         typeof request.body?.password === "string" ? request.body.password : "";
+      if (!hasSafeCredentialLengths(account, password)) {
+        const csrf = issueCsrfToken(response, config, uid, "login");
+        response
+          .status(400)
+          .send(loginView(response, uid, csrf, "账号或密码长度无效。"));
+        return;
+      }
       const loginRateLimitIdentity = {
         ip: resolveTrustedExpressRequestIp(config, request),
         account: account || "unknown",
@@ -1560,7 +1465,7 @@ export function createInteractionRouter(
           (!principal.email ||
             (config.emailVerificationEnabled && !principal.emailVerified))
         ) {
-          await store.saveInteractionLogin(uid, {
+          await persistence.artifacts.saveInteractionLogin(uid, {
             principal,
             authTime: Math.floor(Date.now() / 1000),
           });
@@ -1570,7 +1475,7 @@ export function createInteractionRouter(
           );
           return;
         }
-        await finishInteractionLogin(provider, request, response, {
+        await finishInteractionLogin(interactions, request, response, {
           principal,
           authTime: Math.floor(Date.now() / 1000),
         });
@@ -1633,7 +1538,8 @@ export function createInteractionRouter(
     try {
       setNoStore(response);
       const uid = request.params["uid"] ?? "";
-      const details = await provider.interactionDetails(request, response);
+      const details = await interactions.details(request, response);
+      const { pending } = await journey.openProfile(uid, details);
       if (details.prompt.name !== "login" || details.uid !== uid) {
         response
           .status(400)
@@ -1642,7 +1548,6 @@ export function createInteractionRouter(
           );
         return;
       }
-      const pending = await store.getInteractionLogin(uid);
       if (!pending) {
         response.redirect(302, `/interaction/${encodeURIComponent(uid)}`);
         return;
@@ -1687,7 +1592,8 @@ export function createInteractionRouter(
     try {
       setNoStore(response);
       const uid = request.params["uid"] ?? "";
-      const details = await provider.interactionDetails(request, response);
+      const details = await interactions.details(request, response);
+      const { pending } = await journey.submitProfile(uid, details);
       if (details.prompt.name !== "login" || details.uid !== uid) {
         response
           .status(400)
@@ -1716,7 +1622,6 @@ export function createInteractionRouter(
           );
         return;
       }
-      const pending = await store.getInteractionLogin(uid);
       if (!pending) {
         response.redirect(302, `/interaction/${encodeURIComponent(uid)}`);
         return;
@@ -1741,8 +1646,8 @@ export function createInteractionRouter(
           pending.principal.subjectId,
           email,
         );
-        await store.deleteInteractionLogin(uid);
-        await finishInteractionLogin(provider, request, response, pending);
+        await persistence.artifacts.deleteInteractionLogin(uid);
+        await finishInteractionLogin(interactions, request, response, pending);
         return;
       }
 
@@ -1869,7 +1774,7 @@ export function createInteractionRouter(
             nextResendAt: now + config.emailVerifyResendCooldownSeconds,
           },
         };
-        await store.saveInteractionLogin(uid, updatedPending);
+        await persistence.artifacts.saveInteractionLogin(uid, updatedPending);
         const csrf = issueCsrfToken(response, config, uid, "profile");
         response.status(200).send(
           profileVerifyCodeView(uid, csrf, {
@@ -1896,37 +1801,6 @@ export function createInteractionRouter(
           );
           return;
         }
-        if (verification.expiresAt <= now) {
-          await store.saveInteractionLogin(uid, {
-            principal: pending.principal,
-            authTime: pending.authTime,
-          });
-          const csrf = issueCsrfToken(response, config, uid, "profile");
-          response.status(400).send(
-            profileEmailView(uid, csrf, {
-              email: verification.email,
-              error: "验证码已过期，请重新发送。",
-              verificationEnabled: true,
-            }),
-          );
-          return;
-        }
-        if (verification.attempts >= config.emailVerifyMaxAttempts) {
-          await store.saveInteractionLogin(uid, {
-            principal: pending.principal,
-            authTime: pending.authTime,
-          });
-          const csrf = issueCsrfToken(response, config, uid, "profile");
-          response.status(400).send(
-            profileEmailView(uid, csrf, {
-              email: verification.email,
-              error: "验证码尝试次数过多，请重新发送。",
-              verificationEnabled: true,
-            }),
-          );
-          return;
-        }
-
         const code =
           typeof request.body?.code === "string"
             ? request.body.code.trim()
@@ -1951,50 +1825,62 @@ export function createInteractionRouter(
           verification.email,
           code,
         );
-        if (!secureStringEqual(inputHash, verification.codeHash)) {
-          const nextAttempts = verification.attempts + 1;
-          if (nextAttempts >= config.emailVerifyMaxAttempts) {
-            await store.saveInteractionLogin(uid, {
-              principal: pending.principal,
-              authTime: pending.authTime,
-            });
-            const csrf = issueCsrfToken(response, config, uid, "profile");
-            response.status(400).send(
-              profileEmailView(uid, csrf, {
-                email: verification.email,
-                error: "验证码尝试次数过多，请重新发送。",
-                verificationEnabled: true,
-              }),
-            );
-            return;
-          }
-          await store.saveInteractionLogin(uid, {
-            ...pending,
-            emailVerification: {
-              ...verification,
-              attempts: nextAttempts,
-            },
-          });
+        const result = await persistence.artifacts.verifyInteractionEmailCode(
+          uid,
+          verification.codeHash,
+          inputHash,
+          now,
+          config.emailVerifyMaxAttempts,
+        );
+        if (result.status === "incorrect") {
           const csrf = issueCsrfToken(response, config, uid, "profile");
           response.status(400).send(
             profileVerifyCodeView(uid, csrf, {
-              email: verification.email,
-              error: `验证码错误，还可尝试 ${config.emailVerifyMaxAttempts - nextAttempts} 次。`,
+              email: result.email,
+              error: `验证码错误，还可尝试 ${result.attemptsRemaining} 次。`,
               resendCooldownSeconds: getResendCooldownSeconds(
-                verification.nextResendAt,
+                result.nextResendAt,
                 now,
               ),
             }),
           );
           return;
         }
-
+        if (result.status === "expired" || result.status === "locked") {
+          const csrf = issueCsrfToken(response, config, uid, "profile");
+          response.status(400).send(
+            profileEmailView(uid, csrf, {
+              email: result.email,
+              error:
+                result.status === "expired"
+                  ? "验证码已过期，请重新发送。"
+                  : "验证码尝试次数过多，请重新发送。",
+              verificationEnabled: true,
+            }),
+          );
+          return;
+        }
+        if (result.status === "missing" || result.status === "stale") {
+          response.redirect(
+            303,
+            `/interaction/${encodeURIComponent(uid)}/profile`,
+          );
+          return;
+        }
+        if (result.status !== "verified") {
+          throw new Error("unexpected email verification result");
+        }
         await services.subjectProfileService.setVerifiedEmail(
-          pending.principal.subjectId,
-          verification.email,
+          result.pending.principal.subjectId,
+          result.email,
         );
-        await store.deleteInteractionLogin(uid);
-        await finishInteractionLogin(provider, request, response, pending);
+        await persistence.artifacts.deleteInteractionLogin(uid);
+        await finishInteractionLogin(
+          interactions,
+          request,
+          response,
+          result.pending,
+        );
         return;
       }
 
