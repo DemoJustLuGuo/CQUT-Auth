@@ -47,6 +47,7 @@ export const DashboardLayout: React.FC = () => {
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileVisible, setMobileVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const visibleProjects = projects.filter(
     (project) => project.projectId !== "system",
   );
@@ -184,7 +185,7 @@ export const DashboardLayout: React.FC = () => {
             label: "系统客户端",
             onClick: () => {
               selectProject("system");
-              navigate("/projects/system/overview");
+              navigate("/projects/system/clients");
             },
           },
           {
@@ -206,6 +207,9 @@ export const DashboardLayout: React.FC = () => {
       mode="inline"
       selectedKeys={[location.pathname]}
       items={getMenuItems()}
+      onClick={() => {
+        if (isMobile) setMobileVisible(false);
+      }}
       style={{ borderRight: 0 }}
     />
   );
@@ -217,7 +221,9 @@ export const DashboardLayout: React.FC = () => {
         breakpoint="lg"
         collapsedWidth="0"
         onBreakpoint={(broken) => {
-          // If screen size goes past breakpoint, handle mobile drawer switcher
+          setIsMobile(broken);
+          setCollapsed(broken);
+          if (!broken) setMobileVisible(false);
         }}
         trigger={null}
         collapsible
@@ -246,7 +252,7 @@ export const DashboardLayout: React.FC = () => {
         <Header
           style={{
             background: token.colorBgContainer,
-            padding: "0 24px",
+            padding: isMobile ? "0 12px" : "0 24px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -256,12 +262,19 @@ export const DashboardLayout: React.FC = () => {
           <Space>
             <Button
               type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              aria-label={isMobile ? "打开导航菜单" : "折叠导航菜单"}
+              icon={
+                isMobile || collapsed ? (
+                  <MenuUnfoldOutlined />
+                ) : (
+                  <MenuFoldOutlined />
+                )
+              }
               onClick={() => {
-                setCollapsed(!collapsed);
-                // Also trigger mobile drawer if screen width is narrow
-                if (window.innerWidth < 992) {
+                if (isMobile) {
                   setMobileVisible(true);
+                } else {
+                  setCollapsed(!collapsed);
                 }
               }}
             />
@@ -273,7 +286,7 @@ export const DashboardLayout: React.FC = () => {
                     : activeProject?.projectId
                 }
                 onChange={handleProjectSelect}
-                style={{ width: 200 }}
+                style={{ width: isMobile ? 140 : 200 }}
                 placeholder="切换项目"
               >
                 {visibleProjects.map((p) => (
@@ -286,7 +299,7 @@ export const DashboardLayout: React.FC = () => {
           </Space>
 
           <Space size="middle">
-            {identity && (
+            {identity && !isMobile && (
               <Space size={8}>
                 <Space size={4}>
                   <Text strong>{identity.displayName}</Text>
@@ -317,10 +330,11 @@ export const DashboardLayout: React.FC = () => {
             <Button
               type="text"
               danger
+              aria-label="退出管理台"
               icon={<LogoutOutlined />}
               onClick={() => logout()}
             >
-              退出
+              {!isMobile && "退出"}
             </Button>
           </Space>
         </Header>
@@ -333,7 +347,7 @@ export const DashboardLayout: React.FC = () => {
           placement="left"
           onClose={() => setMobileVisible(false)}
           open={mobileVisible}
-          bodyStyle={{ padding: 0, background: "#0b1f33" }}
+          styles={{ body: { padding: 0, background: "#0b1f33" } }}
         >
           {menuElement}
         </Drawer>
@@ -350,7 +364,7 @@ export const DashboardLayout: React.FC = () => {
             } as React.CSSProperties
           }
         >
-          <Content style={{ margin: "24px 24px 0" }}>
+          <Content style={{ margin: isMobile ? "12px 12px 0" : "24px 24px 0" }}>
             <div style={{ marginBottom: "16px" }}>
               <Breadcrumb
                 items={getBreadcrumbs().map((b) => ({

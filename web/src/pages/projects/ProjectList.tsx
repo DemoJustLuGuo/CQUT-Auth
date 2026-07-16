@@ -126,6 +126,7 @@ export const ProjectList: React.FC = () => {
         columns={columns}
         rowKey="projectId"
         loading={loading}
+        scroll={{ x: "max-content" }}
         pagination={{ pageSize: 10 }}
       />
 

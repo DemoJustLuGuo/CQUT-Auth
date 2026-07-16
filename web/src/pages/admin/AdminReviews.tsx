@@ -187,6 +187,7 @@ export const AdminReviews: React.FC = () => {
           dataSource={pendingClients}
           columns={columns}
           rowKey="clientId"
+          scroll={{ x: "max-content" }}
           loading={loading}
         />
 

@@ -202,6 +202,7 @@ export const ClientList: React.FC = () => {
             dataSource={filteredClients}
             columns={columns}
             rowKey="clientId"
+            scroll={{ x: "max-content" }}
             pagination={{ pageSize: 10 }}
             locale={{
               emptyText: "暂无符合筛选条件的客户端",
