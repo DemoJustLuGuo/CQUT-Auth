@@ -164,7 +164,7 @@ export const ClientList: React.FC = () => {
       }
     >
       <Space direction="vertical" style={{ width: "100%" }} size="middle">
-        <Space wrap>
+        <Space className="responsive-filter-bar" wrap>
           <Input
             placeholder="搜索客户端名称或 ID"
             value={searchText}

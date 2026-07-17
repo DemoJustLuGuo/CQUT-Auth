@@ -610,7 +610,10 @@ export const ClientDetail: React.FC = () => {
                                     key={field.key}
                                     style={{ marginBottom: "8px" }}
                                   >
-                                    <Space align="baseline">
+                                    <Space
+                                      className="responsive-uri-row"
+                                      align="baseline"
+                                    >
                                       <Form.Item
                                         {...field}
                                         rules={[
@@ -625,7 +628,7 @@ export const ClientDetail: React.FC = () => {
                                       >
                                         <Input
                                           placeholder="https://example.com/callback"
-                                          style={{ width: 400 }}
+                                          className="responsive-uri-input"
                                         />
                                       </Form.Item>
                                       {fields.length > 1 && (
@@ -644,7 +647,7 @@ export const ClientDetail: React.FC = () => {
                                   type="dashed"
                                   onClick={() => add()}
                                   icon={<PlusOutlined />}
-                                  style={{ width: 400 }}
+                                  className="responsive-uri-add"
                                 >
                                   添加 Redirect URI
                                 </Button>
@@ -670,7 +673,10 @@ export const ClientDetail: React.FC = () => {
                                     key={field.key}
                                     style={{ marginBottom: "8px" }}
                                   >
-                                    <Space align="baseline">
+                                    <Space
+                                      className="responsive-uri-row"
+                                      align="baseline"
+                                    >
                                       <Form.Item
                                         {...field}
                                         rules={[
@@ -684,7 +690,7 @@ export const ClientDetail: React.FC = () => {
                                       >
                                         <Input
                                           placeholder="https://example.com/logged-out"
-                                          style={{ width: 400 }}
+                                          className="responsive-uri-input"
                                         />
                                       </Form.Item>
                                       <Button
@@ -701,7 +707,7 @@ export const ClientDetail: React.FC = () => {
                                   type="dashed"
                                   onClick={() => add()}
                                   icon={<PlusOutlined />}
-                                  style={{ width: 400 }}
+                                  className="responsive-uri-add"
                                 >
                                   添加 Logout URI
                                 </Button>

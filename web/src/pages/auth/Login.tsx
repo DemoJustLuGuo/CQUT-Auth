@@ -30,7 +30,7 @@ export const Login: React.FC = () => {
   return (
     <main
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "grid",
         gridTemplateColumns: "1.5fr 1px 1fr",
         background: token.colorBgLayout,
@@ -97,14 +97,22 @@ export const Login: React.FC = () => {
               name="account"
               rules={[{ required: true, message: "请输入账号" }]}
             >
-              <Input size="large" placeholder="学号/工号" />
+              <Input
+                size="large"
+                placeholder="学号/工号"
+                autoComplete="username"
+              />
             </Form.Item>
             <Form.Item
               label="密码"
               name="password"
               rules={[{ required: true, message: "请输入密码" }]}
             >
-              <Input.Password size="large" placeholder="密码" />
+              <Input.Password
+                size="large"
+                placeholder="密码"
+                autoComplete="current-password"
+              />
             </Form.Item>
             <Form.Item>
               <Button

@@ -215,7 +215,13 @@ export const DashboardLayout: React.FC = () => {
   );
 
   return (
-    <Layout style={{ height: "100vh", overflow: "hidden" }}>
+    <Layout
+      className="dashboard-shell"
+      style={{ height: "100dvh", overflow: "hidden" }}
+    >
+      <a className="skip-link" href="#dashboard-main-content">
+        跳到主要内容
+      </a>
       {/* Desktop Sider */}
       <Sider
         breakpoint="lg"
@@ -228,9 +234,10 @@ export const DashboardLayout: React.FC = () => {
         trigger={null}
         collapsible
         collapsed={collapsed}
+        className="dashboard-sider"
         style={{
           overflow: "auto",
-          height: "100vh",
+          height: "100dvh",
           position: "sticky",
           top: 0,
           left: 0,
@@ -248,8 +255,12 @@ export const DashboardLayout: React.FC = () => {
         {menuElement}
       </Sider>
 
-      <Layout style={{ height: "100vh", minHeight: 0 }}>
+      <Layout
+        className="dashboard-inner-layout"
+        style={{ height: "100dvh", minHeight: 0 }}
+      >
         <Header
+          className="dashboard-header"
           style={{
             background: token.colorBgContainer,
             padding: isMobile ? "0 12px" : "0 24px",
@@ -259,7 +270,7 @@ export const DashboardLayout: React.FC = () => {
             borderBottom: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
-          <Space>
+          <Space className="dashboard-header-main">
             <Button
               type="text"
               aria-label={isMobile ? "打开导航菜单" : "折叠导航菜单"}
@@ -286,6 +297,7 @@ export const DashboardLayout: React.FC = () => {
                     : activeProject?.projectId
                 }
                 onChange={handleProjectSelect}
+                className="dashboard-project-select"
                 style={{ width: isMobile ? 140 : 200 }}
                 placeholder="切换项目"
               >
@@ -298,7 +310,7 @@ export const DashboardLayout: React.FC = () => {
             )}
           </Space>
 
-          <Space size="middle">
+          <Space className="dashboard-header-actions" size="middle">
             {identity && !isMobile && (
               <Space size={8}>
                 <Space size={4}>
@@ -318,6 +330,9 @@ export const DashboardLayout: React.FC = () => {
             )}
             <Button
               type="text"
+              aria-label={
+                themeMode === "dark" ? "切换到浅色模式" : "切换到深色模式"
+              }
               icon={themeMode === "dark" ? <SunOutlined /> : <MoonOutlined />}
               onClick={toggleTheme}
               style={{
@@ -347,6 +362,7 @@ export const DashboardLayout: React.FC = () => {
           placement="left"
           onClose={() => setMobileVisible(false)}
           open={mobileVisible}
+          width="min(320px, calc(100vw - 24px))"
           styles={{ body: { padding: 0, background: "#0b1f33" } }}
         >
           {menuElement}
@@ -364,8 +380,16 @@ export const DashboardLayout: React.FC = () => {
             } as React.CSSProperties
           }
         >
-          <Content style={{ margin: isMobile ? "12px 12px 0" : "24px 24px 0" }}>
-            <div style={{ marginBottom: "16px" }}>
+          <Content
+            id="dashboard-main-content"
+            tabIndex={-1}
+            className="dashboard-content dashboard-main-content"
+            style={{ margin: isMobile ? "12px 12px 0" : "24px 24px 0" }}
+          >
+            <div
+              className="dashboard-breadcrumb"
+              style={{ marginBottom: "16px" }}
+            >
               <Breadcrumb
                 items={getBreadcrumbs().map((b) => ({
                   title: <a onClick={b.onClick}>{b.title}</a>,

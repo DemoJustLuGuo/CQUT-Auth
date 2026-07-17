@@ -243,7 +243,7 @@ export const AdminReviews: React.FC = () => {
             ]}
           >
             <Space direction="vertical" style={{ width: "100%" }} size="middle">
-              <Descriptions bordered column={2} size="small">
+              <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
                 <Descriptions.Item label="项目">
                   <Space direction="vertical" size={0}>
                     <Text>
